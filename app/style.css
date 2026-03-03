@@ -1,0 +1,147 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.container {
+    text-align: center;
+    padding: 40px;
+    max-width: 500px;
+    width: 100%;
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    color: #e0e0e0;
+}
+
+.subtitle {
+    color: #a0aec0;
+    margin-bottom: 30px;
+    font-size: 0.95rem;
+}
+
+.search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 14px 18px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    outline: none;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.search-box input::placeholder {
+    color: #a0aec0;
+}
+
+.search-box button {
+    padding: 14px 24px;
+    background: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.search-box button:hover {
+    background: #3182ce;
+}
+
+.weather-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 20px;
+}
+
+.weather-card h2 {
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    color: #e0e0e0;
+}
+
+.temp {
+    font-size: 4rem;
+    font-weight: bold;
+    color: #4299e1;
+    margin: 10px 0;
+}
+
+.description {
+    font-size: 1.1rem;
+    color: #a0aec0;
+    text-transform: capitalize;
+    margin-bottom: 20px;
+}
+
+.details {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.label {
+    font-size: 0.8rem;
+    color: #a0aec0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.error {
+    background: rgba(245, 101, 101, 0.2);
+    border: 1px solid rgba(245, 101, 101, 0.4);
+    border-radius: 10px;
+    padding: 15px;
+    color: #fc8181;
+    margin-bottom: 20px;
+}
+
+.footer {
+    margin-top: 30px;
+    color: #a0aec0;
+    font-size: 0.85rem;
+}
+
+.footer strong {
+    color: #4299e1;
+}
+
+.loading {
+    color: #a0aec0;
+    font-size: 1rem;
+    margin: 20px 0;
+}

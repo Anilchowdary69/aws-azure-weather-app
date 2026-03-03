@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🌤 Weather Tracker</h1>
+        <p class="subtitle">Real-time weather powered by AWS & Azure</p>
+
+        <div class="search-box">
+            <input type="text" id="cityInput" placeholder="Enter city name..." />
+            <button onclick="getWeather()">Search</button>
+        </div>
+
+        <div class="weather-card" id="weatherCard" style="display:none;">
+            <h2 id="cityName"></h2>
+            <div class="temp" id="temperature"></div>
+            <div class="description" id="description"></div>
+            <div class="details">
+                <div class="detail">
+                    <span class="label">Humidity</span>
+                    <span id="humidity"></span>
+                </div>
+                <div class="detail">
+                    <span class="label">Wind Speed</span>
+                    <span id="windSpeed"></span>
+                </div>
+                <div class="detail">
+                    <span class="label">Feels Like</span>
+                    <span id="feelsLike"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="error" id="errorMsg" style="display:none;">
+            City not found. Please try again.
+        </div>
+
+        <div class="footer">
+            <p></p>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
