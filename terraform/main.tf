@@ -96,7 +96,7 @@ resource "aws_s3_object" "appjs" {
 # without this my app only loads from one region which is slow for users far away
 resource "aws_cloudfront_distribution" "weather_app" {
   enabled             = true
-  aliases             = ["www.${var.domain_name}"]
+  aliases             = ["www.${var.domain_name}", "app.${var.domain_name}"]
   default_root_object = "index.html"
   comment             = var.cloudfront_comment
 
@@ -118,9 +118,9 @@ resource "aws_cloudfront_distribution" "weather_app" {
 
   # this controls how cloudfront handles incoming requests
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-weather-app"
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3-weather-app"
 
     # if someone visits over http they get redirected to https automatically
     viewer_protocol_policy = "redirect-to-https"
@@ -146,7 +146,7 @@ resource "aws_cloudfront_distribution" "weather_app" {
     }
   }
 
- # i am using my own SSL certificate instead of the default CloudFront one
+  # i am using my own SSL certificate instead of the default CloudFront one
   # this allows HTTPS to work with my custom domain www.anil-weatherapp.online
   # sni-only is the modern standard and works with all browsers built after 2010
   viewer_certificate {
@@ -160,7 +160,6 @@ resource "aws_cloudfront_distribution" "weather_app" {
     Cloud   = "AWS"
   }
 }
-
 # -------------------------------------------------------
 # AZURE SECTION - Blob Storage to host the weather app
 # -------------------------------------------------------
@@ -178,8 +177,8 @@ resource "azurerm_resource_group" "weather_app" {
 }
 
 # i am creating an Azure storage account which is the container for blob storage
-# account_tier = Standard and replication = LRS is the cheapest option for a portfolio project
-# account_kind = StorageV2 is required for static website hosting on Azure
+# Standard LRS is the cheapest option and more than enough for a portfolio project
+# StorageV2 is required for static website hosting on Azure
 resource "azurerm_storage_account" "weather_app" {
   name                     = var.azure_storage_account
   resource_group_name      = azurerm_resource_group.weather_app.name
@@ -189,7 +188,6 @@ resource "azurerm_storage_account" "weather_app" {
   account_kind             = "StorageV2"
 
   # this enables static website hosting on Azure Blob Storage
-  # same concept as S3 static website hosting but on Azure
   static_website {
     index_document     = "index.html"
     error_404_document = "index.html"
@@ -201,8 +199,8 @@ resource "azurerm_storage_account" "weather_app" {
   }
 }
 
-# uploading index.html to Azure Blob Storage
-# storage_account_name references the account i just created above
+# uploading my three app files to Azure Blob Storage
+# $web is the special container Azure creates for static website hosting
 resource "azurerm_storage_blob" "index" {
   name                   = "index.html"
   storage_account_name   = azurerm_storage_account.weather_app.name
@@ -212,7 +210,6 @@ resource "azurerm_storage_blob" "index" {
   content_type           = "text/html"
 }
 
-# uploading style.css to Azure Blob Storage
 resource "azurerm_storage_blob" "style" {
   name                   = "style.css"
   storage_account_name   = azurerm_storage_account.weather_app.name
@@ -222,7 +219,6 @@ resource "azurerm_storage_blob" "style" {
   content_type           = "text/css"
 }
 
-# uploading app.js to Azure Blob Storage
 resource "azurerm_storage_blob" "appjs" {
   name                   = "app.js"
   storage_account_name   = azurerm_storage_account.weather_app.name
@@ -231,7 +227,83 @@ resource "azurerm_storage_blob" "appjs" {
   source                 = "../app/app.js"
   content_type           = "application/javascript"
 }
+# -------------------------------------------------------
+# AZURE FRONT DOOR SECTION - CDN and SSL for Azure side
+# -------------------------------------------------------
 
+# i am using Azure Front Door Standard which is the modern replacement
+# for Azure CDN classic which was deprecated by Microsoft
+resource "azurerm_cdn_frontdoor_profile" "weather_app" {
+  name                = "weather-app-frontdoor"
+  resource_group_name = azurerm_resource_group.weather_app.name
+  sku_name            = "Standard_AzureFrontDoor"
+
+  tags = {
+    Project = "weather-app"
+    Cloud   = "Azure"
+  }
+}
+
+# i am creating a Front Door endpoint - this is my public facing URL
+resource "azurerm_cdn_frontdoor_endpoint" "weather_app" {
+  name                     = "weather-app-endpoint"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.weather_app.id
+
+  tags = {
+    Project = "weather-app"
+    Cloud   = "Azure"
+  }
+}
+
+# i am creating an origin group that points to my Blob Storage
+resource "azurerm_cdn_frontdoor_origin_group" "weather_app" {
+  name                     = "weather-app-origin-group"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.weather_app.id
+
+  load_balancing {}
+}
+
+# i am creating an origin that points to my Azure Blob Storage website
+resource "azurerm_cdn_frontdoor_origin" "weather_app" {
+  name                           = "weather-app-origin"
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.weather_app.id
+  host_name                      = azurerm_storage_account.weather_app.primary_web_host
+  origin_host_header             = azurerm_storage_account.weather_app.primary_web_host
+  https_port                     = 443
+  http_port                      = 80
+  enabled                        = true
+  certificate_name_check_enabled = false
+}
+
+# i am creating a route that connects the endpoint to the origin group
+resource "azurerm_cdn_frontdoor_route" "weather_app" {
+  name                          = "weather-app-route"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.weather_app.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.weather_app.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.weather_app.id]
+  enabled                       = true
+
+  forwarding_protocol    = "HttpsOnly"
+  https_redirect_enabled = true
+  patterns_to_match      = ["/*"]
+  supported_protocols    = ["Http", "Https"]
+
+  # i am linking my custom domain to this route
+  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.weather_app.id]
+  link_to_default_domain          = false
+}
+
+# i am attaching my custom domain to Azure Front Door
+# Azure provides a free managed SSL certificate for custom domains
+resource "azurerm_cdn_frontdoor_custom_domain" "weather_app" {
+  name                     = "weather-app-custom-domain"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.weather_app.id
+  host_name                = "app.${var.domain_name}"
+
+  tls {
+    certificate_type = "ManagedCertificate"
+  }
+}
 # -------------------------------------------------------
 # ACM CERTIFICATE SECTION - SSL for custom domain
 # -------------------------------------------------------
@@ -242,7 +314,7 @@ resource "azurerm_storage_blob" "appjs" {
 resource "aws_acm_certificate" "weather_app" {
   provider                  = aws.us_east_1
   domain_name               = var.domain_name
-  subject_alternative_names = ["www.${var.domain_name}"]
+  subject_alternative_names = ["www.${var.domain_name}", "app.${var.domain_name}"]
   validation_method         = "DNS"
 
   tags = {
@@ -311,35 +383,29 @@ resource "aws_route53_health_check" "weather_app_aws" {
     Project = "weather-app"
   }
 }
-
-# PRIMARY DNS record - points www.anil-weatherapp.online to CloudFront
-# all traffic goes here normally when AWS is healthy
-# i linked it to the health check so Route 53 knows when AWS goes down
+# i am using app subdomain for failover routing
+# this avoids the A record vs CNAME conflict on www
+# both primary and secondary are CNAME type so Route 53 allows them on the same name
 resource "aws_route53_record" "primary" {
   zone_id        = aws_route53_zone.weather_app.zone_id
-  name           = "www.${var.domain_name}"
-  type           = "A"
+  name           = "app.${var.domain_name}"
+  type           = "CNAME"
   set_identifier = "primary"
+  ttl            = 60
 
   failover_routing_policy {
     type = "PRIMARY"
   }
 
   health_check_id = aws_route53_health_check.weather_app_aws.id
-
-  alias {
-    name                   = aws_cloudfront_distribution.weather_app.domain_name
-    zone_id                = aws_cloudfront_distribution.weather_app.hosted_zone_id
-    evaluate_target_health = true
-  }
+  records         = [aws_cloudfront_distribution.weather_app.domain_name]
 }
 
-# SECONDARY DNS record - points www.anil-weatherapp.online to Azure Blob Storage
-# this only activates when the primary health check fails 3 times
-# this is my disaster recovery failover destination
+# secondary record points to Azure - same CNAME type as primary
+# activates automatically when primary health check fails
 resource "aws_route53_record" "secondary" {
   zone_id        = aws_route53_zone.weather_app.zone_id
-  name           = "backup.${var.domain_name}"
+  name           = "app.${var.domain_name}"
   type           = "CNAME"
   set_identifier = "secondary"
   ttl            = 60
@@ -348,6 +414,25 @@ resource "aws_route53_record" "secondary" {
     type = "SECONDARY"
   }
 
-  # pointing to Azure Blob Storage website endpoint as the failover destination
-  records = [azurerm_storage_account.weather_app.primary_web_host]
+  records = [azurerm_cdn_frontdoor_endpoint.weather_app.host_name]
+}
+
+# www points to app subdomain
+# users visit www.anil-weatherapp.online and get routed through the failover logic
+resource "aws_route53_record" "www" {
+  zone_id = aws_route53_zone.weather_app.zone_id
+  name    = "www.${var.domain_name}"
+  type    = "CNAME"
+  ttl     = 60
+  records = ["app.${var.domain_name}"]
+}
+
+# i am adding Azure Front Door domain validation record to Route 53
+# Azure needs this to prove i own app.anil-weatherapp.online
+resource "aws_route53_record" "azure_frontdoor_validation" {
+  zone_id = aws_route53_zone.weather_app.zone_id
+  name    = "_dnsauth.app.${var.domain_name}"
+  type    = "TXT"
+  ttl     = 60
+  records = ["_nz83yurs7j0vxnsiqjfb2j0oftskwze"]
 }

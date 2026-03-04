@@ -16,11 +16,11 @@ output "s3_website_url" {
 
 # i want the CloudFront URL to test the app through the CDN
 output "cloudfront_url" {
-  description = "CloudFront distribution URL - use this to access the app"
+  description = "CloudFront distribution URL"
   value       = "https://${aws_cloudfront_distribution.weather_app.domain_name}"
 }
 
-# i want the CloudFront distribution ID - needed if i want to invalidate cache later
+# i want the CloudFront distribution ID for cache invalidation
 output "cloudfront_distribution_id" {
   description = "CloudFront distribution ID"
   value       = aws_cloudfront_distribution.weather_app.id
@@ -37,14 +37,19 @@ output "azure_website_url" {
   description = "Azure Blob Storage static website URL"
   value       = "https://${azurerm_storage_account.weather_app.primary_web_host}"
 }
+#i want the azure cdn url after deployment
+output "azure_cdn_url" {
+  description = "Azure Front Door endpoint URL"
+  value       = "https://${azurerm_cdn_frontdoor_endpoint.weather_app.host_name}"
+}
 
-# i want to see my domain name after deployment
+# my domain name
 output "domain_name" {
-  description = "Custom domain name for the weather app"
+  description = "Custom domain name"
   value       = var.domain_name
 }
+
 # i need these nameservers to update Namecheap DNS settings
-# after terraform apply copy these 4 values to Namecheap
 output "route53_nameservers" {
   description = "Route 53 nameservers - copy these to Namecheap"
   value       = aws_route53_zone.weather_app.name_servers
