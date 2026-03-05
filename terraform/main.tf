@@ -228,83 +228,6 @@ resource "azurerm_storage_blob" "appjs" {
   content_type           = "application/javascript"
 }
 # -------------------------------------------------------
-# AZURE FRONT DOOR SECTION - CDN and SSL for Azure side
-# -------------------------------------------------------
-
-# i am using Azure Front Door Standard which is the modern replacement
-# for Azure CDN classic which was deprecated by Microsoft
-resource "azurerm_cdn_frontdoor_profile" "weather_app" {
-  name                = "weather-app-frontdoor"
-  resource_group_name = azurerm_resource_group.weather_app.name
-  sku_name            = "Standard_AzureFrontDoor"
-
-  tags = {
-    Project = "weather-app"
-    Cloud   = "Azure"
-  }
-}
-
-# i am creating a Front Door endpoint - this is my public facing URL
-resource "azurerm_cdn_frontdoor_endpoint" "weather_app" {
-  name                     = "weather-app-endpoint"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.weather_app.id
-
-  tags = {
-    Project = "weather-app"
-    Cloud   = "Azure"
-  }
-}
-
-# i am creating an origin group that points to my Blob Storage
-resource "azurerm_cdn_frontdoor_origin_group" "weather_app" {
-  name                     = "weather-app-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.weather_app.id
-
-  load_balancing {}
-}
-
-# i am creating an origin that points to my Azure Blob Storage website
-resource "azurerm_cdn_frontdoor_origin" "weather_app" {
-  name                           = "weather-app-origin"
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.weather_app.id
-  host_name                      = azurerm_storage_account.weather_app.primary_web_host
-  origin_host_header             = azurerm_storage_account.weather_app.primary_web_host
-  https_port                     = 443
-  http_port                      = 80
-  enabled                        = true
-  certificate_name_check_enabled = false
-}
-
-# i am creating a route that connects the endpoint to the origin group
-resource "azurerm_cdn_frontdoor_route" "weather_app" {
-  name                          = "weather-app-route"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.weather_app.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.weather_app.id
-  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.weather_app.id]
-  enabled                       = true
-
-  forwarding_protocol    = "HttpsOnly"
-  https_redirect_enabled = true
-  patterns_to_match      = ["/*"]
-  supported_protocols    = ["Http", "Https"]
-
-  # i am linking my custom domain to this route
-  cdn_frontdoor_custom_domain_ids = [azurerm_cdn_frontdoor_custom_domain.weather_app.id]
-  link_to_default_domain          = false
-}
-
-# i am attaching my custom domain to Azure Front Door
-# Azure provides a free managed SSL certificate for custom domains
-resource "azurerm_cdn_frontdoor_custom_domain" "weather_app" {
-  name                     = "weather-app-custom-domain"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.weather_app.id
-  host_name                = "app.${var.domain_name}"
-
-  tls {
-    certificate_type = "ManagedCertificate"
-  }
-}
-# -------------------------------------------------------
 # ACM CERTIFICATE SECTION - SSL for custom domain
 # -------------------------------------------------------
 
@@ -414,7 +337,8 @@ resource "aws_route53_record" "secondary" {
     type = "SECONDARY"
   }
 
-  records = [azurerm_cdn_frontdoor_endpoint.weather_app.host_name]
+ # pointing directly to Azure Blob Storage website endpoint
+records = [azurerm_storage_account.weather_app.primary_web_host]
 }
 
 # www points to app subdomain
@@ -425,14 +349,4 @@ resource "aws_route53_record" "www" {
   type    = "CNAME"
   ttl     = 60
   records = ["app.${var.domain_name}"]
-}
-
-# i am adding Azure Front Door domain validation record to Route 53
-# Azure needs this to prove i own app.anil-weatherapp.online
-resource "aws_route53_record" "azure_frontdoor_validation" {
-  zone_id = aws_route53_zone.weather_app.zone_id
-  name    = "_dnsauth.app.${var.domain_name}"
-  type    = "TXT"
-  ttl     = 60
-  records = ["_nz83yurs7j0vxnsiqjfb2j0oftskwze"]
 }

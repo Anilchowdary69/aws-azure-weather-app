@@ -37,12 +37,6 @@ output "azure_website_url" {
   description = "Azure Blob Storage static website URL"
   value       = "https://${azurerm_storage_account.weather_app.primary_web_host}"
 }
-#i want the azure cdn url after deployment
-output "azure_cdn_url" {
-  description = "Azure Front Door endpoint URL"
-  value       = "https://${azurerm_cdn_frontdoor_endpoint.weather_app.host_name}"
-}
-
 # my domain name
 output "domain_name" {
   description = "Custom domain name"
