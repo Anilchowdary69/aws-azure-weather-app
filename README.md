@@ -30,8 +30,6 @@ A fully functional weather app that fetches real-time weather data for any city 
 
 ![Architecture Diagram](architecture-diagram.png)
 
-```
-
 ---
 
 ## Features
