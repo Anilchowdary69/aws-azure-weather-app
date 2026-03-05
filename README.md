@@ -109,8 +109,8 @@ Every push to main triggers the pipeline automatically:
 10. Terraform apply — deploy to both clouds
 11. Invalidate CloudFront cache
 
-### Pipeline Screenshot
-![Pipeline Success](pipeline-success.png)
+# pipeline success
+[![Pipeline Success](pipeline-success.png)](pipeline-success.png)
 ---
 
 ## Security
